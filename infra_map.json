@@ -1,0 +1,22 @@
+{
+  "services": {
+    "gerente_emails": {
+      "entrypoint": "/home/openclaw/projetos_ia/gerente_emails/src/email_routine.py",
+      "launcher": "/home/openclaw/projetos_ia/run_email_manager.sh",
+      "docs": "/home/openclaw/projetos_ia/gerente_emails/docs/",
+      "venvs": {
+        "prod": "/home/openclaw/projetos_ia/venv_openclaw",
+        "lint": "/home/openclaw/projetos_ia/venv_py311_lint"
+      }
+    }
+  },
+  "defaults": {
+    "lint_venv": "/home/openclaw/projetos_ia/venv_py311_lint"
+  },
+  "model_mapping": {
+    "Aud": "openrouter/google/gemini-3.1-pro-preview",
+    "Iarvis": "openrouter/google/gemini-3.1-pro-preview",
+    "Dev": "openrouter/google/gemini-3-flash-preview",
+    "Sys": "openrouter/google/gemini-3-flash-preview"
+  }
+}

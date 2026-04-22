@@ -1,0 +1,20 @@
+# secrets / tokens
+**/*.pem
+**/*.key
+**/token.json
+**/.env
+
+# dbs and bulky artifacts
+**/*.db
+**/*.db-bak
+**/*.sqlite
+**/rollback_snapshots/
+**/workflow_tests/artifacts/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+
+# reports
+reports/

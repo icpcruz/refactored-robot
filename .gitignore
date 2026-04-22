@@ -18,3 +18,6 @@ __pycache__/
 
 # reports
 reports/
+
+# guard artifacts
+workflow_tests/rollback_gerente_emails_pre.diff

@@ -38,6 +38,7 @@ DEFAULT_MAX_REWORK_ROUNDS = 2
 POLL_INTERVAL = 5  # segundos
 WORKER_NAME = "iarvis_worker"
 DEFAULT_TASK_TIMEOUT_SECONDS = 20 * 60
+DISPATCH_LOG_DIR = os.path.join(PROJ_ROOT, "governança_ambiente/workflow_logs")
 
 # Tarefas que geram próxima etapa automaticamente (workflow linear padrão)
 DEFAULT_CHAIN = {
@@ -197,6 +198,19 @@ def get_infra_map() -> Dict[str, Any]:
         print(f"ERROR: Invalid JSON in infra map at {INFRA_MAP_PATH}.")
         return {}
 
+def claim_task(task_id: int, assigned_id: str) -> bool:
+    """Tenta "claim" atômico para evitar dois workers pegarem a mesma task."""
+    with db_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE tasks SET status='in_progress', assigned_to_agent_id=? "
+            "WHERE id=? AND status IN ('pending','requeued')",
+            (assigned_id, task_id),
+        )
+        conn.commit()
+        return cur.rowcount == 1
+
+
 def spawn_agent(task_details: Dict[str, Any], infra_map: Dict[str, Any]) -> str:
     """Dispara o subagente via Gateway (CLI), ou simula em dry-run.
 
@@ -244,28 +258,30 @@ def spawn_agent(task_details: Dict[str, Any], infra_map: Dict[str, Any]) -> str:
 
     session_id = f"{WORKER_SESSION_PREFIX}{task_id}"
 
+    os.makedirs(DISPATCH_LOG_DIR, exist_ok=True)
+    log_path = os.path.join(DISPATCH_LOG_DIR, f"task_{task_id}_{target_agent}_{action}.log")
+
     # Execução real via Gateway CLI (não depende de import python 'openclaw')
-    # Observação: usamos --deliver para resposta ir pro canal do Ivan; e o agente deve
-    # obrigatoriamente atualizar o DB por scripts/rotina definida no payload.
     message = task_prompt
     try:
-        subprocess.Popen(
-            [
-                "openclaw",
-                "agent",
-                "--agent",
-                target_agent,
-                "--message",
-                message,
-                "--thinking",
-                "high" if target_agent in ["Aud", "Iarvis"] else "low",
-                "--timeout",
-                "600",
-            ],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-        print("--- DISPATCH: openclaw agent launched ---")
+        with open(log_path, "ab") as out:
+            subprocess.Popen(
+                [
+                    "openclaw",
+                    "agent",
+                    "--agent",
+                    str(target_agent).lower(),
+                    "--message",
+                    message,
+                    "--thinking",
+                    "high" if target_agent in ["Aud", "Iarvis"] else "low",
+                    "--timeout",
+                    "600",
+                ],
+                stdout=out,
+                stderr=out,
+            )
+        print(f"--- DISPATCH: launched (log={log_path}) ---")
     except Exception as exc:
         print(f"ERROR: Failed to launch openclaw agent: {exc}")
         raise
@@ -427,12 +443,14 @@ def run_worker(dry_run: bool = False, once: bool = False) -> None:
             time.sleep(POLL_INTERVAL)
             continue
 
-        # Marcar como in_progress
-        update_task_status(
-            task_id,
-            "in_progress",
-            assigned_agent_id=f"worker-{agent.lower()}-{task_id}",
-        )
+        # Claim atômico
+        assigned_id = f"worker-{agent.lower()}-{task_id}"
+        if not claim_task(task_id, assigned_id):
+            log_worker("warn", "task_claim_failed", {"task_id": task_id})
+            if once:
+                return
+            time.sleep(POLL_INTERVAL)
+            continue
 
         if dry_run:
             # modo simulado: não dispara agente, marca completed e faz chaining

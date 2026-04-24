@@ -1,23 +1,5 @@
-# secrets / tokens
-**/*.pem
-**/*.key
-**/token.json
-**/.env
-
-# dbs and bulky artifacts
-**/*.db
-**/*.db-bak
-**/*.sqlite
-**/rollback_snapshots/
-**/workflow_tests/artifacts/
-
-# python
 __pycache__/
 *.pyc
-.venv/
-
-# reports
-reports/
-
-# guard artifacts
-workflow_tests/rollback_gerente_emails_pre.diff
+workflow_iarvis/backups/
+rollback_snapshots/
+quarentena/

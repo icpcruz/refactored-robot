@@ -1,0 +1,55 @@
+diff --git a/docs/README.md b/docs/README.md
+index 553bfd5..5b8a550 100644
+--- a/docs/README.md
++++ b/docs/README.md
+@@ -56,7 +56,7 @@
+ - **Um único venv**: `gerente_emails/venv/` com TODAS as deps (pytz, google-auth, etc.)
+ - **Um único script**: `email_routine.py` (migrado e atualizado, 462 linhas)
+ - **Um único DB**: `gerente_emails/email_manager.db`
+-- Cron jobs apontam explicitamente para `gerente_emails/venv/bin/python gerente_emails/email_routine.py`
++- Cron jobs apontam explicitamente para `gerente_emails/venv/bin/python gerente_emails/src/email_routine.py`
+ - `run_email_manager.sh` atualizado para o mesmo caminho
+ - Signal inserido como `pending` → `check_email_reports.py` consome como fallback
+ - `gerencia_emails/` renomeado para `gerencia_emails.LEGACY_ARCHIVED_20260315`
+@@ -65,7 +65,7 @@
+ 
+ | Arquivo | Caminho | Função |
+ |---------|---------|--------|
+-| Script principal | `gerente_emails/email_routine.py` | Processa e-mails, gera relatório |
++| Script principal | `gerente_emails/src/email_routine.py` | Processa e-mails, gera relatório |
+ | Venv | `gerente_emails/venv/` | Python 3.14 + todas as deps |
+ | DB processados | `gerente_emails/email_manager.db` | Rastreio de e-mails processados |
+ | Launcher | `run_email_manager.sh` | Wrapper bash para exec |
+@@ -79,7 +79,7 @@
+ ```bash
+ # 1. Executar rotina de e-mails
+ /home/openclaw/projetos_ia/gerente_emails/venv/bin/python \
+-  /home/openclaw/projetos_ia/gerente_emails/email_routine.py
++  /home/openclaw/projetos_ia/gerente_emails/src/email_routine.py
+ 
+ # 2. Verificar signal inserido no comms DB
+ sqlite3 /home/openclaw/projetos_ia/comms_manager/iarvis_comms.db \
+diff --git a/docs/SOP_email_manager_routine.md b/docs/SOP_email_manager_routine.md
+index b7c31e0..08fca7d 100644
+--- a/docs/SOP_email_manager_routine.md
++++ b/docs/SOP_email_manager_routine.md
+@@ -15,7 +15,7 @@ Rotina automatizada de classificação e triagem de e-mails, executada via cron
+ 
+ 1. **Trigger:** Cron job OpenClaw (Weekdays 08:00 / Weekends 10:00, fuso SP)
+ 2. **Agente:** `email_manager` (agentTurn isolado)
+-3. **Execução:** O agente roda `gerente_emails/venv/bin/python gerente_emails/email_routine.py`
++3. **Execução:** O agente roda `gerente_emails/venv/bin/python /home/openclaw/projetos_ia/gerente_emails/src/email_routine.py`
+ 4. **Processamento:**
+    - Autentica Gmail via OAuth (auto-refresh de token)
+    - Busca e-mails não processados das últimas 24h
+diff --git a/src/email_routine.py b/src/email_routine.py
+index 6403397..9e2d6df 100644
+--- a/src/email_routine.py
++++ b/src/email_routine.py
+@@ -547,3 +547,6 @@ def main():
+ 
+ if __name__ == '__main__':
+     main()
++import sys
++import os
++sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../src"))) 

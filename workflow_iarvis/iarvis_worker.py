@@ -237,9 +237,22 @@ def spawn_agent(task_details: Dict[str, Any], infra_map: Dict[str, Any]) -> str:
     # Construir o prompt ('task') para o subagente
     task_prompt = f"Sua ação é: {action}\n"
     task_prompt += f"Contexto: Tarefa ID {task_id}, originada por {task_details['source_agent']}.\n"
-    task_prompt += f"Payload: {json.dumps(payload, indent=2, ensure_ascii=False)}\n"
-    if workflow_mode:
-        task_prompt += f"Contexto do Workflow: {workflow_run_name} ({workflow_mode})\n"
+    task_prompt += f"WorkflowRun: {workflow_run_name} ({workflow_mode or 'N/A'})\n"
+
+    # CONTRATO OBRIGATÓRIO: o agente deve finalizar via task_tools.py
+    task_prompt += "\n=== CONTRATO OBRIGATÓRIO (GOVERNANÇA) ===\n"
+    task_prompt += "Você DEVE finalizar a task atualizando o SQLite (iarvis_comms.db) via helper:\n"
+    task_prompt += "- Tool: /home/openclaw/projetos_ia/governança_ambiente/workflow_iarvis/task_tools.py\n"
+    task_prompt += "- DB:   /home/openclaw/projetos_ia/comms_manager/iarvis_comms.db\n"
+    task_prompt += "Comandos permitidos (escolha 1):\n"
+    task_prompt += f"1) SUCCESS: task_tools.py complete --sender {target_agent} --task-id {task_id} --result-json '<JSON>'\n"
+    task_prompt += f"2) FAIL:    task_tools.py fail --sender {target_agent} --task-id {task_id} --result-json '<JSON>'\n"
+    task_prompt += f"3) REWORK:  task_tools.py requeue --sender {target_agent} --task-id {task_id} --result-json '<JSON>'\n"
+    task_prompt += "O JSON deve ser um objeto e incluir no mínimo: {\"ok\":true/false,\"notes\":\"...\"} e paths de artefatos se existirem.\n"
+    task_prompt += "NÃO responda apenas em texto: sem update no DB a task fica travada.\n"
+    task_prompt += "=== FIM CONTRATO ===\n\n"
+
+    task_prompt += f"Payload (dados da task):\n{json.dumps(payload, indent=2, ensure_ascii=False)}\n"
 
     # --- Argumentos conceituais (mantidos para auditoria) ---
     spawn_args = {

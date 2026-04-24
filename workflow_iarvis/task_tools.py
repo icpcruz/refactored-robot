@@ -198,25 +198,31 @@ def cmd_requeue(args: argparse.Namespace) -> None:
     print(f"OK: task {args.task_id} requeued (round={next_round})")
 
 
+def _add_common(subp: argparse.ArgumentParser) -> None:
+    subp.add_argument("--sender", required=True, help="Nome do agente/remetente (dev/aud/sys/doc/Iarvis)")
+    subp.add_argument("--assigned-agent-id", default=None, help="assigned_to_agent_id para auditoria")
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Workflow Iarvis - task tools")
     p.add_argument("--db", default=DEFAULT_DB_PATH, help="Path do DB (iarvis_comms.db)")
-    p.add_argument("--sender", default="agent", help="Nome do agente/remetente (Dev/Aud/Sys/Doc/Iarvis)")
-    p.add_argument("--assigned-agent-id", default=None, help="assigned_to_agent_id para auditoria")
 
     sub = p.add_subparsers(dest="cmd", required=True)
 
     c = sub.add_parser("complete", help="Marca task como completed + signal task_completed")
+    _add_common(c)
     c.add_argument("--task-id", type=int, required=True)
     c.add_argument("--result-json", default=None)
     c.set_defaults(func=cmd_complete)
 
     f = sub.add_parser("fail", help="Marca task como failed + signal task_failed")
+    _add_common(f)
     f.add_argument("--task-id", type=int, required=True)
     f.add_argument("--result-json", default=None)
     f.set_defaults(func=cmd_fail)
 
     r = sub.add_parser("requeue", help="Marca task como requeued + incrementa rework_round")
+    _add_common(r)
     r.add_argument("--task-id", type=int, required=True)
     r.add_argument("--result-json", default=None)
     r.set_defaults(func=cmd_requeue)

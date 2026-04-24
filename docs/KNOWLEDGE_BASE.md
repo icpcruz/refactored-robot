@@ -1,21 +1,42 @@
 [TOC]
 
-# Iarvis Worker Protocolo v0.1
+# Iarvis Worker Protocolo v0.2 (2026-04-24)
 
 Este documento detalha o protocolo de operação para o Worker Iarvis, responsável por gerenciar o ciclo de vida das tarefas e subagentes.
 
+Mudanças relevantes (2026-04-24):
+- `task_tools.py` virou o **contrato obrigatório** de finalização de tasks (complete/fail/requeue) + emissão de signals.
+- Worker passou a usar **claim atômico** de task para evitar double-consume.
+- Dispatch real via `openclaw agent --agent <id>` (não depende de import Python `openclaw`).
+- Execução contínua em **systemd user service** + healthcheck via timer.
+
 ## 1. Definição
 
-O Iarvis Worker é um processo autônomo que monitora a fila de tarefas (`tasks` table em `iarvis_comms.db`) e despacha as tarefas para os agentes apropriados utilizando `sessions_spawn`. Ele também gerencia o estado das tarefas e a lógica de encadeamento ou reprocessamento.
+O Iarvis Worker é um processo autônomo que monitora a fila de tarefas (`tasks` table em `iarvis_comms.db`) e despacha as tarefas para os agentes apropriados.
+
+Implementação atual:
+- Worker: `/home/openclaw/projetos_ia/governança_ambiente/workflow_iarvis/iarvis_worker.py`
+- Task tools (obrigatório): `/home/openclaw/projetos_ia/governança_ambiente/workflow_iarvis/task_tools.py`
+- DB source-of-truth: `/home/openclaw/projetos_ia/comms_manager/iarvis_comms.db`
+- Infra map: `/home/openclaw/projetos_ia/governança_ambiente/infra_map.json`
+
+O Worker gerencia estado, chaining e rework/escalation driven-by-DB (nada fica só “na memória do processo”).
 
 ## 2. Fluxo de Operação (Control Loop)
 
+### 2.1 Claim atômico
+Para evitar dois workers pegarem a mesma task:
+- O worker faz `UPDATE tasks SET status='in_progress', assigned_to_agent_id=? WHERE id=? AND status IN ('pending','requeued')`.
+- Se `rowcount != 1`, ele ignora a task e segue.
+
 1.  **Poll:** Worker consulta `tasks` buscando por `status IN ('pending', 'requeued')`.
 2.  **Dispatch:** Se encontrar uma tarefa:
-    *   Marca a task como `in_progress` com `assigned_to_agent_id` (identificador do worker).
-    *   Determina o `target_agent` e `action`.
-    *   Prepara o payload, `model`, `runtime` (`acp` por padrão para persistência).
-    *   Invoca `sessions_spawn` (ou API equivalente) para iniciar o subagente.
+    *   Claim atômico → marca `in_progress` + `assigned_to_agent_id`.
+    *   Determina `target_agent` + `action`.
+    *   Constrói prompt com o **contrato obrigatório** de finalização via `task_tools.py`.
+    *   Dispara agente via Gateway CLI:
+        - `openclaw agent --agent <agent_id> --message <prompt>`
+    *   Logs do dispatch ficam em: `/home/openclaw/projetos_ia/governança_ambiente/workflow_logs/`
 3.  **Monitor & Chain:**
     *   Worker aguarda a conclusão da tarefa (via sinal do subagente ou poll do status da task no DB).
     *   Se `status = 'completed'`:
@@ -41,13 +62,59 @@ Campos essenciais para o Worker:
 
 ## 4. Contrato de Sinais (Table `agent_signals`)
 
-Utilizado por subagentes para notificar o Worker ou outros agentes:
-- `sender_agent`: Quem enviou o sinal.
-- `signal_type`: Tipo de evento (ex: `artifact_ready`, `rework_requested`, `escalation_needed`).
-- `task_id`: Tarefa associada.
-- `payload`: Dados adicionais (ex: `'{"next_agent": "Aud", "artifact": "...", "rework_round": 1}'`).
+Utilizado por subagentes para notificar o Worker ou outros agentes.
 
-## 5. Segurança e Rollback
+Tabela (atual): `agent_signals(sender_agent, receiver_agent, message_type, payload_json, status, timestamp)`
+
+Signals relevantes para o workflow:
+- `task_completed` (receiver=`iarvis_worker`)
+- `task_failed` (receiver=`iarvis_worker`)
+- `rework_requested` (receiver=`iarvis_worker`)
+- `escalation_needed` (receiver=`Iarvis` ou `iarvis_worker` dependendo do fluxo)
+- `worker_health_alert` (receiver=`Iarvis`)
+- `cycle_completed` (receiver=`iarvis_worker`)
+
+Observação: o `task_tools.py` é o caminho padrão para atualizar task + gravar signal com payload_json consistente.
+
+## 5. Produção contínua (daemon) + Healthcheck
+
+## 5.4 Contrato obrigatório de finalização (task_tools)
+
+O agente **deve** finalizar cada task via:
+- `/home/openclaw/projetos_ia/governança_ambiente/workflow_iarvis/task_tools.py`
+
+Exemplos:
+- SUCCESS:
+  - `python3 task_tools.py complete --sender dev --task-id 123 --result-json '{"ok":true,"notes":"...","artifacts":{}}'`
+- FAIL:
+  - `python3 task_tools.py fail --sender sys --task-id 123 --result-json '{"ok":false,"error":"..."}'`
+- REWORK:
+  - `python3 task_tools.py requeue --sender aud --task-id 123 --result-json '{"ok":false,"notes":"requer ajustes"}'`
+
+Sem isso, o worker não consegue encadear e a fila trava.
+
+
+### 5.1 systemd (user)
+Serviços instalados:
+- `~/.config/systemd/user/iarvis-worker.service`
+- `~/.config/systemd/user/iarvis-worker-healthcheck.service`
+- `~/.config/systemd/user/iarvis-worker-healthcheck.timer`
+
+Comandos:
+- `systemctl --user status iarvis-worker.service`
+- `systemctl --user restart iarvis-worker.service`
+- `systemctl --user status iarvis-worker-healthcheck.timer`
+
+### 5.2 Launcher com lockfile
+- `/home/openclaw/projetos_ia/governança_ambiente/workflow_iarvis/iarvis_worker_launcher.sh`
+- Lock: `/tmp/iarvis_worker.lock`
+
+### 5.3 Healthcheck
+- Script: `/home/openclaw/projetos_ia/governança_ambiente/workflow_iarvis/healthcheck_worker.py`
+- Frequência: 5 min (timer)
+- Se detectar tasks pendentes acima do limite ou logs stale, grava `agent_signals.message_type='worker_health_alert'` com `status=pending`.
+
+## 6. Segurança e Rollback
 
 - **Worker roda como usuário `openclaw`:** Não necessita de `elevated=true` por padrão.
 - **Atomicidade:** Operações no DB são transacionais.

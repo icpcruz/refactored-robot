@@ -8,6 +8,7 @@ Script executor: `/home/openclaw/projetos_ia/governança_ambiente/workflow_tests
 
 ## Execução 1 — Linear (Dev → Aud → Sys → Doc → Iarvis)
 - **2026-04-24**: Piloto Real (Gerente de Emails). Correção de `classification_rules` (73 regras) e execução da `email_routine.py` integrada ao Workflow Run ID 9. Sistema de sinais (`iarvis_comms.db`) validado como canal de saída do piloto.
+- **2026-04-24 (13:17 UTC)**: Task 47 finalizada. Processamento real de 1 e-mail ('Asimov Academy') verificado. Documentação técnica atualizada por Doc.
 
 - workflow_runs: `id=1`, `status=completed`
 - tasks criadas e concluídas:

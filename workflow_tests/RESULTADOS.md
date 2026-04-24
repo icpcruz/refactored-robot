@@ -7,6 +7,8 @@ Artefatos: `/home/openclaw/projetos_ia/governança_ambiente/workflow_tests/artif
 Script executor: `/home/openclaw/projetos_ia/governança_ambiente/workflow_tests/simulate_workflow.py`
 
 ## Execução 1 — Linear (Dev → Aud → Sys → Doc → Iarvis)
+- **2026-04-24**: Piloto Real (Gerente de Emails). Correção de `classification_rules` (73 regras) e execução da `email_routine.py` integrada ao Workflow Run ID 9. Sistema de sinais (`iarvis_comms.db`) validado como canal de saída do piloto.
+
 - workflow_runs: `id=1`, `status=completed`
 - tasks criadas e concluídas:
   - `id=1` Dev→Aud `review_artifact` (marker L1)

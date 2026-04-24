@@ -1,0 +1,14 @@
+path,filename,scope,mtime_utc,size_bytes,sha256
+"/home/openclaw/.openclaw/workspace/SOP_AGENT_GOVERNANCE.md","SOP_AGENT_GOVERNANCE.md",active,2026-04-24T20:20:26.156972Z,12063,afa20e5f18cee09a0d359fbb79797f390b38a169d011ac82801d27643c5eb704
+"/home/openclaw/.openclaw/workspace/SOP_MEMORY_CONTINUITY.md","SOP_MEMORY_CONTINUITY.md",active,2026-03-29T03:17:09.474079Z,2488,09fa27ad4feba432192d6fa41eae94a1746046ccff3e012bffab934ed30ac842
+"/home/openclaw/.openclaw/workspace/Sys/SOP_MONITORAMENTO.md","SOP_MONITORAMENTO.md",active,2026-03-30T19:08:17.362938Z,2309,3b43689d9c2fcec620f34932fe9f121138aeade938a8deb3dbf942646d435b73
+"/home/openclaw/.openclaw/workspace/docs/SOP_Backup_Google_Drive.md","SOP_Backup_Google_Drive.md",archive,2026-03-18T01:47:03.275010Z,6098,c90b9254e0f9b1fc5f51a84d1585d402d3f70ec6d839c5fd94021ca54821a29e
+"/home/openclaw/.openclaw/workspace/docs/SOP_REPORT_DELIVERY.md","SOP_REPORT_DELIVERY.md",active,2026-03-24T03:07:26.701786Z,1723,8b40d9f1b116a68e5ed0d58a0f168f5c65aea108a2fbe97d972979bfc9e25ae9
+"/home/openclaw/.openclaw/workspace/docs/SOP_SKILL_DEVELOPPER.md","SOP_SKILL_DEVELOPPER.md",active,2026-04-05T01:50:16.809443Z,2657,9375eca9b9671ebee3a597c8974b093821db143053b0853248d5fe77450cd2ce
+"/home/openclaw/.openclaw/workspace/docs/SOP_VERSIONAMENTO.md","SOP_VERSIONAMENTO.md",active,2026-03-19T01:09:40.916775Z,4438,e3f5fb36b48d543ad94a42bb0be3d2030aae99622a3a3f9fec5e47960ad5e86c
+"/home/openclaw/.openclaw/workspace/docs/infrastructure/SOP_HOSTINGER_GATEWAY.md","SOP_HOSTINGER_GATEWAY.md",active,2026-02-24T04:16:20Z,4587,6cca7c55acadeddf9077a0279ec4a354767f1ff689fb4884f8f00e5d2e52934e
+"/home/openclaw/.openclaw/workspace/memory/pointers/SOP_REFERENCES.md","SOP_REFERENCES.md",memory_snapshot,2026-04-24T20:49:53.663921Z,399,f8959d6a21d0cc033af06d1cca9ab7a7d6bd51bbc61fd2b0d6e8d1438627dcee
+"/home/openclaw/.openclaw/workspace/memory/projetos_ia_contexto/gerente_emails/docs/SOP_email_manager_routine.md","SOP_email_manager_routine.md",memory_snapshot,2026-04-24T12:49:31.020264Z,2266,cecc173872cf12d3e6a8b8880ce879a73288ced574e00d3ac035f006a265c238
+"/home/openclaw/.openclaw/workspace/memory/projetos_ia_contexto/gerente_emails/gerente_emails_backup_20260421142132/SOP_email_manager_routine.md","SOP_email_manager_routine.md",memory_snapshot,2026-04-21T14:21:32.060397Z,2235,df185b41e185c7676cdd6ad07e47533b30027dffa2d9fd753666c2fb2b64cfe3
+"/home/openclaw/projetos_ia/gerente_emails/docs/SOP_email_manager_routine.md","SOP_email_manager_routine.md",active,2026-04-24T12:49:31.020264Z,2266,cecc173872cf12d3e6a8b8880ce879a73288ced574e00d3ac035f006a265c238
+"/home/openclaw/projetos_ia/gerente_emails/gerente_emails_backup_20260421142132/SOP_email_manager_routine.md","SOP_email_manager_routine.md",archive,2026-04-21T14:21:32.060397Z,2235,df185b41e185c7676cdd6ad07e47533b30027dffa2d9fd753666c2fb2b64cfe3

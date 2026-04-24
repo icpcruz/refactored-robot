@@ -1,0 +1,46 @@
+diff --git a/SOP_AGENT_GOVERNANCE.md b/SOP_AGENT_GOVERNANCE.md
+index 4048d0ce..900617a4 100644
+--- a/SOP_AGENT_GOVERNANCE.md
++++ b/SOP_AGENT_GOVERNANCE.md
+@@ -30,6 +30,41 @@ Este Procedimento Operacional Padrão (SOP) define as diretrizes para a criaçã
+ 
+ ## 4. Auditoria e Conformidade
+ 
++### 3.1 Ciclo Padrão de Desenvolvimento (Dev → Aud → Sys → Doc → Iarvis → Dev)
++
++Este é o **ciclo oficial** para evolução/versionamento de projetos (com PRs e deploy), e deve ser seguido como rotina.
++
++**Fluxo:**
++1. **Dev (Desenvolvimento)**
++   - Implementa mudanças.
++   - Gera artefatos mínimos de validação (ex.: relatório de dry-run, diffs, logs relevantes).
++   - Prepara branch de feature e commits pequenos e revisáveis.
++2. **Aud (Revisão de artefatos + conformidade)**
++   - Revisa artefatos e documentação.
++   - Conformidade com normas internas/externas aplicáveis.
++   - Rodar linters/tests estáticos (best-effort) e apontar melhorias.
++3. **Sys (Segurança e conformidade legal quando aplicável)**
++   - Auditoria de segurança (segredos, permissões, caminhos sensíveis, hardening).
++   - Valida que **logs/backups** não expõem tokens/chaves/IPs sensíveis.
++4. **Doc (Economia e eficiência)**
++   - Otimização de prompts/modelos (custo/token).
++   - Ajustes de documentação para operação contínua e troubleshooting.
++5. **Iarvis (Orquestração holística + interface com Ivan)**
++   - Consolida resultado do ciclo.
++   - Aprova execução de piloto real supervisionado (quando aplicável).
++   - Decide se o pacote está pronto para PR/deploy.
++6. **Dev (PR + Deploy para produção)**
++   - **Responsável por operacionalizar** branching e PRs (GitHub).
++   - Abre PR com checklist, evidências e instruções de rollout/rollback.
++   - Faz deploy para produção conforme playbook do projeto.
++
++**Regras operacionais do ciclo:**
++- **Handoff rastreável:** cada passagem de fase deve gerar evidência em artefatos (docs/reports) e/ou logs (`agent_logs`/`agent_signals`).
++- **Segredos:** qualquer suspeita de segredo/credencial/log sensível deve ser **isolada em diretório seguro** (chmod 700 dir, 600 arquivos) e removida do versionamento.
++- **PR só com source seguro:** backups/logs/snapshots e DBs operacionais não devem ir ao Git.
++- **Rollback obrigatório:** antes de deploy real, criar snapshot/diff e instrução de rollback.
++
++
+ ### 4.0 Regra de Memória (MEMORY.md compacta)
+ - `MEMORY.md` é **nobre** e deve permanecer **curta**.
+ - Não registrar logs extensos em `MEMORY.md`.

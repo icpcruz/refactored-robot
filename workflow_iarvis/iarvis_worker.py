@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # /home/openclaw/projetos_ia/governança_ambiente/workflow_iarvis/iarvis_worker.py
 
 """Iarvis Worker (v1 - dispatch real).

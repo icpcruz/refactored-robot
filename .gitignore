@@ -1,5 +1,7 @@
-__pycache__/
 *.pyc
-workflow_iarvis/backups/
-rollback_snapshots/
+__pycache__/
 quarentena/
+rollback_snapshots/
+workflow_iarvis/backups/
+workflow_logs/*
+workflow_tests/artifacts/*

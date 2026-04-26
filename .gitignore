@@ -6,3 +6,4 @@ rollback_snapshots/
 workflow_iarvis/backups/
 workflow_logs/*
 workflow_tests/artifacts/*
+cron-jobs-tests/ingest_*.json

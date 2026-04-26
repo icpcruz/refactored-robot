@@ -1,0 +1,24 @@
+{
+  "id": "fallback-cron-ingest",
+  "name": "Ingest Cron Audits - Fallback",
+  "enabled": true,
+  "schedule": {
+    "kind": "cron",
+    "expr": "15 2 * * *",
+    "tz": "America/Sao_Paulo"
+  },
+  "sessionTarget": "isolated",
+  "wakeMode": "now",
+  "payload": {
+    "kind": "agentTurn",
+    "message": "Ingest cron audits (fallback) - horário padrão 02:15",
+    "model": "openrouter/openrouter/auto"
+  },
+  "delivery": {
+    "mode": "announce",
+    "channel": "telegram",
+    "to": "@internal", 
+    "bestEffort": false
+  },
+  "enabled": true
+}

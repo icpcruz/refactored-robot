@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import sqlite3
 import subprocess
@@ -40,6 +41,9 @@ POLL_INTERVAL = 5  # segundos
 WORKER_NAME = "iarvis_worker"
 DEFAULT_TASK_TIMEOUT_SECONDS = 20 * 60
 DISPATCH_LOG_DIR = os.path.join(PROJ_ROOT, "governança_ambiente/workflow_logs")
+# Novo threshold baseado em heartbeats (substitui janela temporal)
+HEARTBEATS_TO_INTERVENE = 10
+logger = logging.getLogger(__name__)
 
 # Tarefas que geram próxima etapa automaticamente (workflow linear padrão)
 DEFAULT_CHAIN = {
@@ -180,6 +184,20 @@ def start_workflow_run(run_name: str, mode: str) -> Optional[int]:
     return execute(query, (run_name, mode, "in_progress"))
 
 # === FUNÇÕES DE WORKER ===
+
+# Helpers for stalemate/heartbeat-based intervention
+def should_trigger_stalemate(task: Dict[str, Any]) -> bool:
+    hb = int(task.get("heartbeat_count") or 0)
+    return task.get("status") == "in_progress" and hb >= HEARTBEATS_TO_INTERVENE
+
+
+def maybe_trigger_intervention(task: Dict[str, Any]) -> None:
+    if should_trigger_stalemate(task):
+        hb = int(task.get("heartbeat_count") or 0)
+        task_id = int(task.get("id")) if task.get("id") else None
+        logger.info("Stalemate detected for task_id=%s after %d heartbeats", task_id, hb)
+        add_signal(WORKER_NAME, "escalation_needed", task_id, {"heartbeat_count": hb, "reason": "stalemate_heartbeat"})
+
 def get_infra_map() -> Dict[str, Any]:
     """Carrega o mapa de infraestrutura."""
     try:
@@ -497,6 +515,11 @@ def run_worker(dry_run: bool = False, once: bool = False) -> None:
 
         # chaining (se houver workflow_run)
         final_task = get_task(task_id) or task
+
+        # Stalemate detection (heartbeat-based): 10 heartbeats
+        # Note: requires task to contain heartbeat_count (added by external heartbeat tracker)
+        maybe_trigger_intervention(final_task)
+
         next_id = maybe_chain_next(final_task)
         if next_id:
             log_worker("info", "task_chained", {"from": task_id, "to": next_id})

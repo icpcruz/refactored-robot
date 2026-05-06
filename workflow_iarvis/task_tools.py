@@ -56,6 +56,8 @@ def update_task(
     assigned_agent_id: Optional[str] = None,
     rework_round: Optional[int] = None,
 ) -> None:
+    # NOTE: schema is forward-compatible. Some installs may not have the
+    # monitoring columns yet; we try to update them best-effort.
     sets = ["status=?"]
     params: list[Any] = [status]
 
@@ -71,12 +73,34 @@ def update_task(
         sets.append("rework_round=?")
         params.append(int(rework_round))
 
+    # Best-effort monitoring fields (if present)
+    sets.append("last_progress_at=?")
+    params.append(datetime.now(timezone.utc).isoformat())
+    sets.append("stalemate_cycles=0")
+
     params.append(task_id)
 
     q = f"UPDATE tasks SET {', '.join(sets)} WHERE id=?"
     with db_conn(db_path) as conn:
         cur = conn.cursor()
-        cur.execute(q, tuple(params))
+        try:
+            cur.execute(q, tuple(params))
+        except sqlite3.OperationalError:
+            # Older schema: retry without monitoring columns
+            sets = ["status=?"]
+            params = [status]
+            if result is not None:
+                sets.append("result_json=?")
+                params.append(json.dumps(result, ensure_ascii=False))
+            if assigned_agent_id is not None:
+                sets.append("assigned_to_agent_id=?")
+                params.append(assigned_agent_id)
+            if rework_round is not None:
+                sets.append("rework_round=?")
+                params.append(int(rework_round))
+            params.append(task_id)
+            q2 = f"UPDATE tasks SET {', '.join(sets)} WHERE id=?"
+            cur.execute(q2, tuple(params))
         conn.commit()
 
 

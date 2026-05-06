@@ -275,13 +275,21 @@ def spawn_agent(task_details: Dict[str, Any], infra_map: Dict[str, Any]) -> str:
     os.makedirs(DISPATCH_LOG_DIR, exist_ok=True)
     log_path = os.path.join(DISPATCH_LOG_DIR, f"task_{task_id}_{target_agent}_{action}.log")
 
-    # Execução real via Gateway CLI (não depende de import python 'openclaw')
+    # Execução real via Gateway CLI
+    # Observação: o worker roda via /usr/bin/python3 (systemd/launcher) e pode herdar um PATH
+    # diferente do seu shell. Por isso, resolvemos o binário de forma robusta.
     message = task_prompt
     try:
+        import shutil
+
+        bin_path = shutil.which("openclaw") or "/home/openclaw/.local/bin/openclaw"
+        if not (os.path.isfile(bin_path) and os.access(bin_path, os.X_OK)):
+            raise FileNotFoundError(f"openclaw binary not found or not executable: {bin_path}")
+
         with open(log_path, "ab") as out:
             subprocess.Popen(
                 [
-                    "openclaw",
+                    bin_path,
                     "agent",
                     "--agent",
                     str(target_agent).lower(),

@@ -26,6 +26,26 @@ MAX_INTERACTIONS = 3
 STALE_HOURS = 2
 STALE_HEARTBEATS = 10
 
+# Escaladas não podem ficar “esquecidas”.
+# Regra:
+# - Qualquer task em status='escalated' com payload contendo markers de exemplo/dry-run
+#   deve ser auto-fechada (completed) após um limite de ciclos (heartbeat) ou tempo.
+# - Para escaladas reais (sem marker), o worker deve emitir um agent_signal de alerta
+#   quando passar do limite, para intervenção humana.
+ESCALATED_MAX_AGE_HOURS = 2
+ESCALATED_MAX_HEARTBEATS = 10
+
+# Auto-remediação mínima: algumas tasks (especialmente de cron_jobs) podem ser
+# "exemplos/dry-run" e acabarem escaladas por watchdog/fluxos antigos.
+# Para evitar backlog infinito, fechamos automaticamente SOMENTE itens claramente
+# marcados como exemplo.
+EXAMPLE_MARKERS = (
+    "Exemplo:",
+    "exemplo",
+    "arquivo_a.py: exemplo",
+    "arquivo_b.py: exemplo",
+)
+
 @contextmanager
 def db_conn():
     conn = sqlite3.connect(DB_PATH)
@@ -47,6 +67,96 @@ def fetch_all(query: str, params: Tuple[Any, ...] = ()) -> List[Dict[str, Any]]:
         cur = conn.cursor()
         cur.execute(query, params)
         return [dict(row) for row in cur.fetchall()]
+
+
+def emit_worker_alert(task_id: int, reason: str, task: Dict[str, Any] | None = None) -> None:
+    """Emite agent_signal para alertar o Iarvis (ou outro receiver) sobre escaladas não resolvidas."""
+    payload = {
+        "task_id": task_id,
+        "reason": reason,
+        "observed_at": datetime.now().isoformat(),
+        "task": {
+            "project_id": (task or {}).get("project_id"),
+            "status": (task or {}).get("status"),
+            "action": (task or {}).get("action"),
+            "created_at": (task or {}).get("created_at"),
+            "escalated_at": (task or {}).get("escalated_at"),
+        },
+    }
+    with db_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            INSERT INTO agent_signals (sender_agent, receiver_agent, message_type, payload_json, status, project_id)
+            VALUES (?,?,?,?,?,?)
+            """,
+            (
+                "iarvis_worker",
+                "Iarvis",
+                "escalated_task_stale",
+                json.dumps(payload, ensure_ascii=False),
+                "pending",
+                (task or {}).get("project_id") or "default",
+            ),
+        )
+        conn.commit()
+
+
+def auto_remediate_escalated() -> Dict[str, int]:
+    """Auto-remedia escaladas antigas.
+
+    - Se escalada for claramente exemplo/dry-run (payload contém EXAMPLE_MARKERS): fecha como completed.
+    - Se escalada for real: emite alert signal quando ultrapassar limites.
+
+    Nota: usamos time-based como fallback; heartbeat_count também serve como gatilho (10 ciclos).
+    """
+    now = datetime.now()
+    esc_rows = fetch_all(
+        "SELECT id, project_id, action, status, payload_json, created_at, escalated_at, heartbeat_count FROM tasks WHERE status='escalated'"
+    )
+    closed = 0
+    alerted = 0
+    for t in esc_rows:
+        payload = t.get("payload_json") or ""
+        is_example = any(m in payload for m in EXAMPLE_MARKERS)
+
+        # Age calc: prefer escalated_at, fallback created_at
+        ts = t.get("escalated_at") or t.get("created_at")
+        age_ok = False
+        if ts:
+            try:
+                base = datetime.strptime(ts, "%Y-%m-%d %H:%M:%S")
+                age_ok = (now - base) > timedelta(hours=ESCALATED_MAX_AGE_HOURS)
+            except Exception:
+                # If unparseable timestamp, treat as stale
+                age_ok = True
+
+        hb = int(t.get("heartbeat_count") or 0)
+        hb_ok = hb >= ESCALATED_MAX_HEARTBEATS
+
+        if not (age_ok or hb_ok):
+            continue
+
+        if is_example:
+            update_task_status(
+                int(t["id"]),
+                "completed",
+                {
+                    "ok": True,
+                    "auto_closed": True,
+                    "reason": "auto-remediation: escalated example/dry-run task",
+                    "policy": {
+                        "max_age_hours": ESCALATED_MAX_AGE_HOURS,
+                        "max_heartbeats": ESCALATED_MAX_HEARTBEATS,
+                    },
+                },
+            )
+            closed += 1
+        else:
+            emit_worker_alert(int(t["id"]), "stale escalated task requires intervention", t)
+            alerted += 1
+
+    return {"closed": closed, "alerted": alerted}
 
 def poll_pending_tasks() -> Optional[Dict[str, Any]]:
     """Busca tarefa pendente ou requeued."""
@@ -133,7 +243,15 @@ def run_worker(dry_run=False, once=False):
     while True:
         # 1. Watchdog
         escalated = run_watchdog()
-        if escalated > 0: print(f"Watchdog: {escalated} tasks escaladas.")
+        if escalated > 0:
+            print(f"Watchdog: {escalated} tasks escaladas.")
+
+        # 1b. Auto-remediação / alerta: escaladas não podem ficar "esquecidas"
+        remed = auto_remediate_escalated()
+        if (remed.get("closed") or 0) > 0:
+            print(f"Auto-remediation: {remed['closed']} escalated example tasks auto-closed.")
+        if (remed.get("alerted") or 0) > 0:
+            print(f"Alert: {remed['alerted']} escalated tasks require intervention (signal emitted).")
 
         # 2. Poll Task
         task = poll_pending_tasks()

@@ -23,7 +23,7 @@ import os
 import subprocess
 import time
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 import sqlite3
 
 COMMS_DB = "/home/openclaw/projetos_ia/comms_manager/iarvis_comms.db"
@@ -41,12 +41,13 @@ MAX_PENDING_AGE_SECONDS = 20 * 60  # 20 minutes
 # Which signals represent "should be delivered to Telegram"
 WATCH_MESSAGE_TYPES = {
     "email_report",
-    "stack24h_report_telegram",
 }
 
 
 @dataclass
 class Signal:
+    """Agent-signal row for Telegram delivery supervision."""
+
     id: int
     sender_agent: str
     receiver_agent: str
@@ -58,11 +59,17 @@ class Signal:
 
 
 def utcnow() -> datetime:
+    """Return current UTC timestamp."""
+
     return datetime.now(timezone.utc)
 
 
 def db_connect() -> sqlite3.Connection:
-    return sqlite3.connect(COMMS_DB)
+    """Open DB connection with a busy timeout."""
+
+    conn = sqlite3.connect(COMMS_DB)
+    conn.execute("PRAGMA busy_timeout=20000")
+    return conn
 
 
 def ensure_retry_column(conn: sqlite3.Connection) -> None:
@@ -78,23 +85,30 @@ def ensure_retry_column(conn: sqlite3.Connection) -> None:
         conn.commit()
 
 
-def ensure_status_values(conn: sqlite3.Connection) -> None:
-    # no-op for now; statuses are free-text
+def ensure_status_values() -> None:
+    """No-op placeholder: statuses are free-text."""
+
     return
 
 
 def parse_ts(ts: str) -> datetime | None:
-    # Stored like: 2026-05-05 16:47:46
+    """Parse DB timestamps as UTC.
+
+    Stored like: "2026-05-05 16:47:46" or "2026-05-05T16:47:46Z".
+    """
+
     for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%SZ"):
         try:
-            dt = datetime.strptime(ts, fmt)
-            return dt.replace(tzinfo=timezone.utc)
-        except Exception:
+            parsed = datetime.strptime(ts, fmt)
+            return parsed.replace(tzinfo=timezone.utc)
+        except ValueError:
             continue
     return None
 
 
 def fetch_pending(conn: sqlite3.Connection) -> list[Signal]:
+    """Fetch pending signals that must be delivered to Telegram."""
+
     cur = conn.cursor()
     qmarks = ",".join(["?"] * len(WATCH_MESSAGE_TYPES))
     cur.execute(
@@ -112,6 +126,8 @@ def fetch_pending(conn: sqlite3.Connection) -> list[Signal]:
 
 
 def get_retry_count(conn: sqlite3.Connection, signal_id: int) -> int:
+    """Return retry_count for a given agent_signal id."""
+
     cur = conn.cursor()
     cur.execute("SELECT retry_count FROM agent_signals WHERE id=?", (signal_id,))
     row = cur.fetchone()
@@ -119,6 +135,8 @@ def get_retry_count(conn: sqlite3.Connection, signal_id: int) -> int:
 
 
 def bump_retry(conn: sqlite3.Connection, signal_id: int) -> int:
+    """Increment retry_count and return the new value."""
+
     cur = conn.cursor()
     cur.execute("UPDATE agent_signals SET retry_count = retry_count + 1 WHERE id=?", (signal_id,))
     conn.commit()
@@ -126,12 +144,16 @@ def bump_retry(conn: sqlite3.Connection, signal_id: int) -> int:
 
 
 def mark_status(conn: sqlite3.Connection, signal_id: int, status: str) -> None:
+    """Update agent_signal status."""
+
     cur = conn.cursor()
     cur.execute("UPDATE agent_signals SET status=? WHERE id=?", (status, signal_id))
     conn.commit()
 
 
 def enqueue_escalation(conn: sqlite3.Connection, reason: str, signal: Signal) -> None:
+    """Create an intervention task for iarvis_worker when delivery fails."""
+
     cur = conn.cursor()
     payload = {
         "reason": reason,
@@ -184,7 +206,8 @@ def attempt_resend(signal: Signal) -> tuple[bool, str]:
         path = "/home/openclaw/projetos_ia/gerente_emails/reports/email_report_latest.txt"
         if not os.path.exists(path):
             return False, f"missing artifact {path}"
-        text = open(path, "r", encoding="utf-8").read()
+        with open(path, "r", encoding="utf-8") as report_file:
+            text = report_file.read()
         cmd = [
             "openclaw",
             "message",
@@ -196,7 +219,7 @@ def attempt_resend(signal: Signal) -> tuple[bool, str]:
             "--message",
             text,
         ]
-        p = subprocess.run(cmd, capture_output=True, text=True)
+        p = subprocess.run(cmd, capture_output=True, text=True, check=False)
         if p.returncode == 0:
             return True, "resent via openclaw message send"
         return False, f"send failed rc={p.returncode} stderr={p.stderr.strip()}"
@@ -207,7 +230,7 @@ def attempt_resend(signal: Signal) -> tuple[bool, str]:
             "/usr/bin/python3",
             "/home/openclaw/.openclaw/workspace/scripts/send_daily_stack_report_telegram.py",
         ]
-        p = subprocess.run(cmd, capture_output=True, text=True)
+        p = subprocess.run(cmd, capture_output=True, text=True, check=False)
         if p.returncode == 0:
             return True, "stack report re-enqueued"
         return False, f"stack enqueue failed rc={p.returncode} stderr={p.stderr.strip()}"
@@ -216,11 +239,13 @@ def attempt_resend(signal: Signal) -> tuple[bool, str]:
 
 
 def main() -> None:
+    """Main loop."""
+
     while True:
         conn = db_connect()
         try:
             ensure_retry_column(conn)
-            ensure_status_values(conn)
+            ensure_status_values()
 
             pending = fetch_pending(conn)
             now = utcnow()
@@ -284,8 +309,8 @@ def main() -> None:
                     )
                     conn.commit()
 
-        except Exception as e:
-            print(f"ERROR: {e}")
+        except (sqlite3.Error, OSError, ValueError, subprocess.SubprocessError) as exc:
+            print(f"ERROR: {exc}")
         finally:
             conn.close()
 

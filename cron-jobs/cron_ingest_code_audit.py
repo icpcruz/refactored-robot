@@ -68,7 +68,75 @@ def _db_conn(db_path: str) -> sqlite3.Connection:
     return conn
 
 
+def ensure_schema(db_path: str) -> None:
+    """Ensure the minimal schema needed by this ingester exists.
+
+    We cannot assume `/comms_manager/setup_comms_db.py` was executed or that it
+    contains all tables used here.
+    """
+    with _db_conn(db_path) as conn:
+        cur = conn.cursor()
+
+        # Projects
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS projects (
+                project_id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT,
+                created_at TEXT
+            )
+            """
+        )
+
+        # Tasks (consumed by iarvis_worker)
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS tasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_agent TEXT NOT NULL,
+                target_agent TEXT NOT NULL,
+                action TEXT NOT NULL,
+                payload_json TEXT,
+                status TEXT DEFAULT 'pending',
+                project_id TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(project_id) REFERENCES projects(project_id)
+            )
+            """
+        )
+
+        # Agent signals (extend the base comms DB if needed)
+        # Historical DBs may exist without `project_id`; we add it if missing.
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS agent_signals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sender_agent TEXT NOT NULL,
+                receiver_agent TEXT NOT NULL,
+                message_type TEXT NOT NULL,
+                payload_json TEXT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                status TEXT DEFAULT 'pending'
+            )
+            """
+        )
+        try:
+            cur.execute("ALTER TABLE agent_signals ADD COLUMN project_id TEXT")
+        except sqlite3.OperationalError:
+            # duplicate column name / cannot alter (already present)
+            pass
+
+        # Helpful indexes
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_signals_status ON agent_signals(status)")
+
+        conn.commit()
+
+
 def ensure_project(db_path: str, project_id: str) -> None:
+    ensure_schema(db_path)
     with _db_conn(db_path) as conn:
         cur = conn.cursor()
         cur.execute(
@@ -87,6 +155,7 @@ def insert_task(
     payload: Dict[str, Any],
     status: str = "pending",
 ) -> int:
+    ensure_schema(db_path)
     with _db_conn(db_path) as conn:
         cur = conn.cursor()
         cur.execute(
@@ -101,6 +170,7 @@ def insert_task(
 
 
 def emit_signal(db_path: str, project_id: str, payload: Dict[str, Any]) -> None:
+    ensure_schema(db_path)
     with _db_conn(db_path) as conn:
         cur = conn.cursor()
         cur.execute(

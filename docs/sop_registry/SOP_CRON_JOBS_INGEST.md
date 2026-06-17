@@ -38,6 +38,7 @@ O script:
 - sempre grava um artefato `ingest_*.json` em `cron-jobs-tests/` (ou `--artifacts-root`)
 - cria tasks em `tasks(project_id='cron_jobs')`
 - emite signal em `agent_signals(project_id='cron_jobs', receiver_agent='iarvis_worker')`
+- por padrão, **não ingere relatórios stale**: se o `mtime` do relatório tiver mais de 24h, cria apenas uma task `cron_report_noop` para Doc com `noop_reason=report_mtime_older_than_max_age`. Use `--allow-stale` apenas em reprocessamento aprovado.
 
 ## 5) Cron de ingestão (fallback padrão)
 Política:

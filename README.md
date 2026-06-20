@@ -67,3 +67,15 @@ Projetos seed (atual):
 
 - Ponteiro: `docs/SOP_REFERENCES.md`
 - Registro de SOPs (DB): tabela `sop_registry` em `iarvis_comms.db`
+## GitHub sync e higiene de artefatos
+
+Este repo publica código, SOPs e artefatos documentais do ambiente de governança.
+Não versionar estado runtime local:
+
+- bancos SQLite (`*.db`, incluindo `iarvis_logs.db`);
+- tokens, OAuth e `.env`;
+- relatórios efêmeros como `reports/relatorios_cron/latest.txt`;
+- backups, snapshots, quarentena e logs de workflow.
+
+Relatórios executivos estáveis em Markdown podem permanecer versionados quando servirem como documentação/auditoria.
+

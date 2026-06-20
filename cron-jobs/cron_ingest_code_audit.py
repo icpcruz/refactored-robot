@@ -29,7 +29,7 @@ import sqlite3
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 PRJ_ROOT = "/home/openclaw/projetos_ia"
 DEFAULT_ARTIFACTS_ROOT = Path(f"{PRJ_ROOT}/governança_ambiente/cron-jobs-tests")

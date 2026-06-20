@@ -6,3 +6,16 @@ rollback_snapshots/
 workflow_iarvis/backups/
 workflow_logs/*
 workflow_tests/artifacts/*
+cron-jobs-tests/ingest_*.json
+# Runtime/private state
+*.db
+*.db-journal
+*.db-wal
+.env
+.env.*
+!.env.example
+token.json
+client_secrets.json
+credentials.json
+reports/relatorios_cron/latest.txt
+reports/relatorios_cron/*.tmp

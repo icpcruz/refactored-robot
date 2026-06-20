@@ -1,0 +1,17 @@
+{
+  "project": "cron_jobs",
+  "report": {
+    "report_path": "/home/openclaw/projetos_ia/governança_ambiente/cron-jobs-tests/sample_report_cron.txt",
+    "items": [
+      "- arquivo_a.py: exemplo de finding (C0301)",
+      "- arquivo_b.py: exemplo de finding (W0703)",
+      "- Exemplo: catch Exception genérico pode esconder erro",
+      "- Exemplo: extrair função util",
+      "- Dev: refatorar",
+      "- Aud: revisar lint"
+    ],
+    "summary": "6 findings"
+  },
+  "dry_run": false,
+  "created_at": "2026-04-26T02:58:01.510028+00:00"
+}

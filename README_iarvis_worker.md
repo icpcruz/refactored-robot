@@ -18,4 +18,12 @@ Como rodar rapidamente:
 
 Observação de governança:
 - Backups sensíveis são mantidos em /home/openclaw/projetos_ia/governança_ambiente/backups com permissão 700/600.
-- SOPs são registrados em SOP Registry (DB) e inventariados em SOP_INVENTORY.*.
+- ## Diretriz de Orquestração (Maestro)
+
+As tarefas escaladas pelo Watchdog são de responsabilidade do **Iarvis**. O Iarvis deve:
+1. Analisar a falha no banco de dados.
+2. Identificar o agente ideal para correção (`Sys` para infra, `Dev` para bugs, `Aud` para qualidade).
+3. Criar uma nova tarefa de correção/remedy.
+4. Monitorar até o fechamento do ciclo.
+O Iarvis gerencia o débito técnico sistemicamente.
+

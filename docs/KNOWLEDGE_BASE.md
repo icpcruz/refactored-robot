@@ -129,3 +129,18 @@ Comandos:
 ---
 *Este documento será atualizado conforme o Worker evoluir.*
  Meade Meade /home/openclaw/projetos_ia/governança_ambiente/docs/KNOWLEDGE_BASE.md
+## 7. Lições Aprendidas: O "Script Python Perfeito" (Pylint 8.0+)
+
+Para garantir manutenibilidade e nota alta em auditorias automáticas, todo novo script deve seguir estes padrões antes da primeira submissão:
+
+1.  **Docstrings:** Obrigatório no topo do módulo, classes e todas as funções públicas/privadas.
+2.  **Context Managers:** Usar `with open(...)` ou `with db_conn()` para todo recurso alocável.
+3.  **Tratamento de Erros:** Proibido `except Exception:`. Usar exceções específicas (ex: `FileNotFoundError`, `sqlite3.Error`).
+4.  **Subprocess:** Sempre usar `check=True` para disparar erros em falhas externas e capturar stdout/stderr.
+5.  **Clean Code:**
+    - Nomes de variáveis em `snake_case` (mínimo 3 caracteres, evitar `e`, `ts`, `df`).
+    - Limite de 100 caracteres por linha.
+    - Máximo de 15 variáveis locais por função e 12 ramos de decisão (`if/elif`).
+6.  **Tooling:** Rodar `./lint_and_format.sh` antes de qualquer `git commit`.
+
+*Ref: Auditoria Noturna 2026-05-06*

@@ -13,8 +13,13 @@ Worker de orquestração baseado em fila de tarefas (SQLite) + infra_map.
   - `workflow_runs`
   - `agent_signals` (já existente no DB)
 
-## Dry-run (regra de ouro)
-Executa um fluxo linear simulado e valida chaining até `close_cycle`:
+## Papel do Iarvis: Maestro e SCRUM Master
+
+- **Identidade:** Iarvis atua como orquestrador, Maestro e SCRUM Master do Squad de agentes.
+- **Não Executor:** O Iarvis não executa tarefas técnicas (como edição de código) diretamente em workflows de produção; ele toma decisões e delega via `tasks` para agentes especializados (`Dev`, `Aud`, `Sys`, etc.).
+- **Escalonamento:** O Watchdog escalona tarefas presas ou com falha para o **Iarvis**. Cabe ao Iarvis analisar a causa no DB, gerenciar o débito técnico e criar novas tarefas de correção/investigação para os subagentes.
+- **Responsabilidade:** Iarvis é o último elo do workflow, certificando o resultado antes da entrega final ao Ivan.
+
 
 ```bash
 python3 /home/openclaw/projetos_ia/governança_ambiente/workflow_iarvis/iarvis_worker.py --dry-run

@@ -17,9 +17,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import sqlite3
 import subprocess
 from datetime import datetime, timezone, timedelta
+
+logger = logging.getLogger(__name__)
 
 DB = "/home/openclaw/projetos_ia/comms_manager/iarvis_comms.db"
 WORKER_NAME = "iarvis_worker"
@@ -38,6 +41,7 @@ def systemd_is_active() -> bool:
         )
         return r.returncode == 0
     except Exception:
+        logger.exception("Failed to check systemd status for %s", SYSTEMD_UNIT)
         return False
 
 
@@ -116,6 +120,7 @@ def main() -> None:
             try:
                 last_ts = datetime.fromisoformat(str(last_log["timestamp"]).replace(" ", "T"))
             except Exception:
+                logger.exception("Failed to parse last log timestamp: %s", last_log["timestamp"])
                 last_ts = None
 
             if last_ts and last_ts.replace(tzinfo=None) < stale_cutoff.replace(tzinfo=None):

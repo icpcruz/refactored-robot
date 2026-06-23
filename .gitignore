@@ -19,3 +19,4 @@ client_secrets.json
 credentials.json
 reports/relatorios_cron/latest.txt
 reports/relatorios_cron/*.tmp
+*.LEGACY.empty

@@ -1,0 +1,2 @@
+# Auto-generated requirements for governança_ambiente
+# Generated from imports in .py files, matched against venv_openclaw
